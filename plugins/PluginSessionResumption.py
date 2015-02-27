@@ -75,7 +75,7 @@ class PluginSessionResumption(PluginBase.PluginBase):
         thread_pool.start(NB_THREADS)
 
         # Format session ID results
-        (txt_resum, xml_resum) = self._format_resum_id_results(thread_pool, MAX_RESUM)
+        (txt_resum, xml_resum, db_resum) = self._format_resum_id_results(thread_pool, MAX_RESUM)
 
         # Text output
         cmd_title = 'Resumption Rate with Session IDs'
@@ -86,8 +86,11 @@ class PluginSessionResumption(PluginBase.PluginBase):
         xml_result = Element('resum_rate', title = cmd_title)
         xml_result.append(xml_resum)
 
+        # DB output
+        db_output = {'resumRate': db_resum}
+
         thread_pool.join()
-        return PluginBase.PluginResult(txt_result, xml_result)
+        return PluginBase.PluginResult(txt_result, xml_result, db_output)
 
 
     def _command_resum(self, target):
@@ -112,7 +115,7 @@ class PluginSessionResumption(PluginBase.PluginBase):
             ticket_error = str(e.__class__.__name__) + ' - ' + str(e)
 
         # Format session ID results
-        (txt_resum, xml_resum) = self._format_resum_id_results(thread_pool, MAX_RESUM)
+        (txt_resum, xml_resum, db_resum) = self._format_resum_id_results(thread_pool, MAX_RESUM)
 
         if ticket_error:
             ticket_txt = 'ERROR: ' + ticket_error
@@ -128,22 +131,30 @@ class PluginSessionResumption(PluginBase.PluginBase):
         txt_result.extend(txt_resum[1:])
         txt_result.append(RESUM_FORMAT('With TLS Session Tickets:', ticket_txt))
 
-        # XML output
+        # XML and DB output
         xml_resum_ticket_attr = {}
+        db_resum_ticket_attr = {}
         if ticket_error:
             xml_resum_ticket_attr['error'] = ticket_error
+            db_resum_ticket_attr['error'] = ticket_error
         else:
             xml_resum_ticket_attr['isSupported'] = str(ticket_supported)
+            db_resum_ticket_attr['isSupported'] = ticket_supported
             if not ticket_supported:
                 xml_resum_ticket_attr['reason'] = ticket_reason
+                db_resum_ticket_attr['reason'] = ticket_reason
 
         xml_resum_ticket = Element('sessionResumptionWithTLSTickets', attrib = xml_resum_ticket_attr)
         xml_result = Element('resum', title=cmd_title)
         xml_result.append(xml_resum)
         xml_result.append(xml_resum_ticket)
 
+        db_resum['sessionResumptionWithTLSTickets'] = db_resum_ticket_attr
+
+        db_output = {'resum': db_resum}
+
         thread_pool.join()
-        return PluginBase.PluginResult(txt_result, xml_result)
+        return PluginBase.PluginResult(txt_result, xml_result, db_output)
 
 
     @staticmethod
@@ -195,14 +206,25 @@ class PluginSessionResumption(PluginBase.PluginBase):
                              'errors' : str(nb_error), 'isSupported' : sessid_xml,
                              'successfulAttempts':str(nb_resum),'failedAttempts':str(nb_failed)}
         xml_resum_id = Element('sessionResumptionWithSessionIDs', attrib = xml_resum_id_attr)
+
+        # DB output
+        db_result = {'sessionResumptionWithSessionIDs': {'totalAttempts': MAX_RESUM,
+                                                           'errors': nb_error,
+                                                           'isSupported': nb_resum == MAX_RESUM,
+                                                           'successfulAttempts': nb_resum,
+                                                           'failedAttempts': nb_failed}}
+
         # Add errors
         if error_list:
+            db_errors = []
             for error_msg in error_list:
                 xml_resum_error = Element('error')
                 xml_resum_error.text = error_msg
                 xml_resum_id.append(xml_resum_error)
+                db_errors.append(error_msg)
+            db_result['errors'] = db_errors
 
-        return txt_result, xml_resum_id
+        return txt_result, xml_resum_id, db_result
 
 
     def _resume_with_session_id(self, target):

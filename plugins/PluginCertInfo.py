@@ -189,20 +189,25 @@ class PluginCertInfo(PluginBase.PluginBase):
         text_output.extend(self._get_ocsp_text(ocsp_response))
 
 
-        # XML output
+        # XML and DB output
         xml_output = Element(command, argument=arg, title='Certificate Information')
 
         # XML output - certificate chain:  always return the full certificate for each cert in the chain
         cert_chain_xml = Element('certificateChain')
 
         # First add the leaf certificate
-        cert_chain_xml.append(self._format_cert_to_xml(x509_cert_chain[0], 'leaf', self._shared_settings['sni']))
+        (xml_cert, db_cert) = self._format_cert_to_xml_dict(x509_cert_chain[0], 'leaf', self._shared_settings['sni'])
+        cert_chain_xml.append(xml_cert)
+        db_cert_chain = [db_cert]
 
         # Then add every other cert in the chain
         for cert in x509_cert_chain[1:]:
-            cert_chain_xml.append(self._format_cert_to_xml(cert, 'intermediate', self._shared_settings['sni']))
+            (xml_cert, db_cert) = self._format_cert_to_xml_dict(cert, 'intermediate', self._shared_settings['sni'])
+            cert_chain_xml.append(xml_cert)
+            db_cert_chain.append(db_cert)
 
         xml_output.append(cert_chain_xml)
+        db_output = {'certificateChain': db_cert_chain}
 
 
         # XML output - trust
@@ -214,7 +219,11 @@ class PluginCertInfo(PluginBase.PluginBase):
                                       certificateMatchesServerHostname=is_hostname_valid)
         trust_validation_xml.append(host_validation_xml)
 
+        hostname_validation_db = {'serverHostname': host, 'certificateMatchesServerHostname': is_hostname_valid}
+        trust_validation_db = {'hostnameValidation': hostname_validation_db}
+
         # Path validation - OK
+        path_validations_db = []
         for ((store_name, store_version), verify_str) in verify_dict.iteritems():
             path_attrib_xml = {
                 'usingTrustStore': store_name,
@@ -227,6 +236,7 @@ class PluginCertInfo(PluginBase.PluginBase):
                     path_attrib_xml['isExtendedValidationCertificate'] = str(self._is_ev_certificate(x509_cert))
 
             trust_validation_xml.append(Element('pathValidation', attrib=path_attrib_xml))
+            path_validations_db.append(path_attrib_xml)
 
         # Path validation - Errors
         for ((store_name, store_version), error_msg) in verify_dict_error.iteritems():
@@ -237,47 +247,63 @@ class PluginCertInfo(PluginBase.PluginBase):
             }
 
             trust_validation_xml.append(Element('pathValidation', attrib=path_attrib_xml))
+            path_validations_db.append(path_attrib_xml)
 
 
         xml_output.append(trust_validation_xml)
+
+        db_output['certificateValidations'] = path_validations_db
 
 
         # XML output - OCSP Stapling
         if ocsp_response is None:
             ocsp_attr_xml = {'isSupported': 'False'}
             ocsp_xml = Element('ocspStapling', attrib=ocsp_attr_xml)
+            ocsp_attr_db = {'isSupported': False}
         else:
             ocsp_attr_xml = {'isSupported': 'True'}
             ocsp_xml = Element('ocspStapling', attrib=ocsp_attr_xml)
+            ocsp_attr_db = {'isSupported': True}
 
-            ocsp_resp_attr_xml = {'isTrustedByMozillaCAStore': str(ocsp_response.verify(MOZILLA_STORE_PATH))}
+            ocsp_response = str(ocsp_response.verify(MOZILLA_STORE_PATH))
+            ocsp_resp_attr_xml = {'isTrustedByMozillaCAStore': ocsp_response}
+            ocsp_attr_db['isTrustedByMozillaCAStore'] = ocsp_response
             ocsp_resp_xmp = Element('ocspResponse', attrib=ocsp_resp_attr_xml)
+
+            ocsp_response_db = {}
             for (key, value) in ocsp_response.as_dict().items():
                 ocsp_resp_xmp.append(_keyvalue_pair_to_xml(key, value))
+                ocsp_response_db[key] = value
             ocsp_xml.append(ocsp_resp_xmp)
+            ocsp_attr_db['ocspResponse'] = ocsp_response_db
 
         xml_output.append(ocsp_xml)
+        db_output['ocspStapling'] = ocsp_attr_db
 
-        return PluginBase.PluginResult(text_output, xml_output)
+        return PluginBase.PluginResult(text_output, xml_output, db_output)
 
 
     # FORMATTING FUNCTIONS
     @staticmethod
-    def _format_cert_to_xml(x509_cert, x509_cert_position_in_chain_txt, sni_txt):
-        cert_attrib_xml = {
+    def _format_cert_to_xml_dict(x509_cert, x509_cert_position_in_chain_txt, sni_txt):
+        cert_attrib = {
             'sha1Fingerprint': x509_cert.get_SHA1_fingerprint()
         }
 
         if x509_cert_position_in_chain_txt:
-            cert_attrib_xml['position'] = x509_cert_position_in_chain_txt
+            cert_attrib['position'] = x509_cert_position_in_chain_txt
 
         if sni_txt:
-            cert_attrib_xml['suppliedServerNameIndication'] = sni_txt
-        cert_xml = Element('certificate', attrib=cert_attrib_xml)
+            cert_attrib['suppliedServerNameIndication'] = sni_txt
+        cert_xml = Element('certificate', attrib=cert_attrib)
 
         cert_as_pem_xml = Element('asPEM')
-        cert_as_pem_xml.text = x509_cert.as_pem().strip()
+        as_pem = x509_cert.as_pem().strip()
+        cert_as_pem_xml.text = as_pem
         cert_xml.append(cert_as_pem_xml)
+        cert_attrib['asPEM'] = as_pem
+
+        cert_dict = {'certificate': cert_attrib}
 
 
         for (key, value) in x509_cert.as_dict().items():
@@ -290,7 +316,10 @@ class PluginCertInfo(PluginBase.PluginBase):
 
             # Add the XML element
             cert_xml.append(_keyvalue_pair_to_xml(key, value))
-        return cert_xml
+
+            cert_dict[key] = value
+
+        return (cert_xml, cert_dict)
 
 
     def _get_ocsp_text(self, ocsp_resp):

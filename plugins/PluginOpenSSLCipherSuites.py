@@ -120,8 +120,9 @@ class PluginOpenSSLCipherSuites(PluginBase.PluginBase):
         thread_pool.join()
 
         # Generate results
+        (xml_output, db_output) = self._generate_xml_db_output(result_dicts, command)
         return PluginBase.PluginResult(self._generate_text_output(result_dicts, command),
-                                       self._generate_xml_output(result_dicts, command))
+                                       xml_output, db_output)
 
 
 # == INTERNAL FUNCTIONS ==
@@ -187,16 +188,19 @@ class PluginOpenSSLCipherSuites(PluginBase.PluginBase):
 
 
     @staticmethod
-    def _generate_xml_output(result_dicts, command):
+    def _generate_xml_db_output(result_dicts, command):
 
         xmlNodeList = []
         isProtocolSupported = False
+        db_output = {}
 
         for (resultKey, resultDict) in result_dicts.items():
             xmlNode = Element(resultKey)
 
-            # Sort the cipher suites by name to make the XML diff-able
+            # Sort the cipher suites by name to make the outputs diff-able
             resultList = sorted(resultDict.items(), key=lambda (k,v): (k,v), reverse=False)
+
+            db_cipher_list = []
 
             # Add one element for each ciphers
             for (sslCipher, (msg, keysize, dh_infos)) in resultList:
@@ -206,27 +210,35 @@ class PluginOpenSSLCipherSuites(PluginBase.PluginBase):
                     isProtocolSupported = True
 
                 cipherXmlAttr = {'name' : sslCipher, 'connectionStatus' : msg}
+                cipher_db_attr = {'name' : sslCipher, 'connectionStatus' : msg}
                 if keysize:
                     cipherXmlAttr['keySize'] = str(keysize)
+                    cipher_db_attr['keySize'] = keysize
 
                 # Add an Anonymous attribute for anonymous ciphers
                 cipherXmlAttr['anonymous'] = str(True) if 'ADH' in sslCipher or 'AECDH' in sslCipher else str(False)
+                cipher_db_attr['anonymous'] = True if 'ADH' in sslCipher or 'AECDH' in sslCipher else False
 
                 cipherXml = Element('cipherSuite', attrib = cipherXmlAttr)
                 if dh_infos : 
                     cipherXml.append(Element('keyExchange', attrib=dh_infos))
-
+                    cipher_db_attr['keyExchange'] = dh_infos
 
                 xmlNode.append(cipherXml)
 
+                db_cipher_list.append(cipher_db_attr)
+
             xmlNodeList.append(xmlNode)
+            db_output[resultKey] = db_cipher_list
 
         # Create the final node and specify if the protocol was supported
         xmlOutput = Element(command, title=command.upper() + ' Cipher Suites', isProtocolSupported=str(isProtocolSupported))
         for xmlNode in xmlNodeList:
             xmlOutput.append(xmlNode)
 
-        return xmlOutput
+        db_output['isProtocolSupported'] = isProtocolSupported
+
+        return (xmlOutput, db_output)
 
 
 # SSL FUNCTIONS

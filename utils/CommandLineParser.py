@@ -165,6 +165,13 @@ class CommandLineParser():
             dest='xml_file',
             default=None)
 
+        # Database output
+        self._parser.add_option(
+            '--db',
+            help='Persists the scan results in an database DB_CONN.',
+            dest='db_conn',
+            default=None)
+
         # Read targets from input file
         self._parser.add_option(
             '--targets_in',

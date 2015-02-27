@@ -93,7 +93,7 @@ class PluginResult:
     """
     Plugin.process_task() should return an instance of this class.
     """
-    def __init__(self, text_result, xml_result):
+    def __init__(self, text_result, xml_result, db_result):
         """
         @type text_result: [str]
         @param text_result: Printable version of the plugin's results.
@@ -101,15 +101,22 @@ class PluginResult:
 
         @type xml_result: xml.etree.ElementTree.Element
         @param xml_result: XML version of the plugin's results.
+
+        @type db_result: dict
+        @param db_result: Hierarchical version of the plugin's results.
         """
         self._text_result = text_result
         self._xml_result = xml_result
+        self._db_result = db_result
 
     def get_xml_result(self):
         return self._xml_result
 
     def get_txt_result(self):
         return self._text_result
+
+    def get_db_result(self):
+        return self._db_result
 
 
 

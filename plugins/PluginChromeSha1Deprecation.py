@@ -32,7 +32,6 @@ from plugins import PluginBase
 from utils.SSLyzeSSLConnection import create_sslyze_connection
 from nassl.SslClient import ClientCertificateRequested
 
-
 from plugins.PluginCertInfo import MOZILLA_STORE_PATH, PluginCertInfo
 
 ROOT_CERTS = []
@@ -50,9 +49,9 @@ class PluginChromeSha1Deprecation(PluginBase.PluginBase):
     CMD_TITLE = "Google Chrome SHA-1 Deprecation Status"
 
     # Chrome icon descriptions
-    CHROME_MINOR_ERROR_TXT = 'AFFECTED - SHA1-signed certificate(s) will trigger the "Secure, but minor errors" icon.'
-    CHROME_NEUTRAL_TXT = 'AFFECTED - SHA1-signed certificate(s) will trigger the "Neutral, lacking security" icon.'
-    CHROME_INSECURE_TXT = 'AFFECTED - SHA1-signed certificate(s) will trigger the "Affirmatively insecure" icon.'
+    CHROME_MINOR_ERROR_TXT = 'AFFECTED - SHA1-signed certificate(s) will trigger an icon: Secure, but minor errors.'
+    CHROME_NEUTRAL_TXT = 'AFFECTED - SHA1-signed certificate(s) will trigger an icon: Neutral, lacking security.'
+    CHROME_INSECURE_TXT = 'AFFECTED - SHA1-signed certificate(s) will trigger an icon: Affirmatively insecure.'
 
 
     def process_task(self, target, command, arg):
@@ -72,13 +71,17 @@ class PluginChromeSha1Deprecation(PluginBase.PluginBase):
 
         outputXml = Element(command, title = self.CMD_TITLE)
         outputTxt = [self.PLUGIN_TITLE_FORMAT(self.CMD_TITLE)]
+        db_output = {}
 
         # Is this cert chain affected ?
         leafNotAfter = datetime.datetime.strptime(certChain[0].as_dict()['validity']['notAfter'], "%b %d %H:%M:%S %Y %Z")
+        db_output['certExpiration'] = str(leafNotAfter)
         if leafNotAfter.year < 2016:
             # Not affected - the certificate expires before 2016
             outputTxt.append(self.FIELD_FORMAT('OK - Leaf certificate expires before 2016.', ''))
             outputXml.append(Element('chromeSha1Deprecation', isServerAffected = str(False)))
+            db_output['isAffected'] = False
+            db_output['note'] = 'Leaf certificate expires before 2016'
 
         else:
             certsWithSha1 = []
@@ -94,12 +97,15 @@ class PluginChromeSha1Deprecation(PluginBase.PluginBase):
                 # Not affected - no certificates used SHA-1 in the chain
                 outputTxt.append(self.FIELD_FORMAT('OK - Certificate chain does not contain any SHA-1 certificate.', ''))
                 outputXml.append(Element('chromeSha1Deprecation', isServerAffected = str(False)))
+                db_output['isAffected'] = False
+                db_output['note'] = 'No SHA-1 certificates'
 
             else:
                 # Server is affected
                 leafCertNotAfter = certChain[0].as_dict()['validity']['notAfter']
                 outputXml2 = Element('chromeSha1Deprecation', isServerAffected = str(True),
                                      leafCertificateNotAfter = leafCertNotAfter)
+                db_output['isAffected'] = True
                 chrome39Txt = 'OK'
                 chrome40Txt = 'OK'
 
@@ -128,7 +134,7 @@ class PluginChromeSha1Deprecation(PluginBase.PluginBase):
                 # XML output
                 affectedCertsXml = Element('sha1SignedCertificates')
                 for cert in certsWithSha1:
-                    affectedCertsXml.append(PluginCertInfo._format_cert_to_xml(cert, '', self._shared_settings['sni']))
+                    affectedCertsXml.append(PluginCertInfo._format_cert_to_xml_dict(cert, '', self._shared_settings['sni'])[0])
                 outputXml2.append(affectedCertsXml)
 
                 outputXml2.append(Element(
@@ -144,8 +150,16 @@ class PluginChromeSha1Deprecation(PluginBase.PluginBase):
                     behavior = chrome41Txt,
                     isAffected = str(True)))
                 outputXml.append(outputXml2)
+
+                db_output['chromeBehaviour'] = {}
+                db_output['chromeBehaviour']['chrome39'] = {'behaviour': chrome39Txt,
+                                                            'isAffected': False if chrome39Txt is 'OK' else True}
+                db_output['chromeBehaviour']['chrome40'] = {'behaviour': chrome40Txt,
+                                                            'isAffected': False if chrome40Txt is 'OK' else True}
+                db_output['chromeBehaviour']['chrome41'] = {'behaviour': chrome41Txt,
+                                                            'isAffected': False if chrome41Txt is 'OK' else True}
         
-        return PluginBase.PluginResult(outputTxt, outputXml)
+        return PluginBase.PluginResult(outputTxt, outputXml, db_output)
 
 
     @staticmethod

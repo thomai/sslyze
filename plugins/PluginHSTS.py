@@ -66,8 +66,9 @@ class PluginHSTS(PluginBase.PluginBase):
         else:
             txt_result.append(self.FIELD_FORMAT("NOT SUPPORTED - Server did not send an HSTS header.", ""))
 
-        # XML output
+        # XML and DB output
         xml_hsts_attr = {'isSupported': str(hsts_supported)}
+        db_output = {'isSupported': hsts_supported}
         if hsts_supported:
             # Do some light parsing of the HSTS header
             hsts_header_split = hsts_header.split('max-age=')[1].split(';')
@@ -79,11 +80,14 @@ class PluginHSTS(PluginBase.PluginBase):
             xml_hsts_attr['maxAge'] = hsts_max_age
             xml_hsts_attr['includeSubdomains'] = str(hsts_subdomains)
 
+            db_output['maxAge'] = hsts_max_age
+            db_output['includeSubdomains'] = hsts_subdomains
+
         xml_hsts = Element('httpStrictTransportSecurity', attrib=xml_hsts_attr)
         xml_result = Element('hsts', title=cmd_title)
         xml_result.append(xml_hsts)
 
-        return PluginBase.PluginResult(txt_result, xml_result)
+        return PluginBase.PluginResult(txt_result, xml_result, db_output)
 
 
 

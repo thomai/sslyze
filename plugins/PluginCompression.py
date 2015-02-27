@@ -64,14 +64,17 @@ class PluginCompression(PluginBase.PluginBase):
         txtOutput = [self.PLUGIN_TITLE_FORMAT(cmdTitle)]
         txtOutput.append(self.FIELD_FORMAT(compTxt, ""))
 
-        # XML output
-        xmlOutput = Element(command, title=cmdTitle)
+        # XML and DB output
         if compName:
-            xmlNode = Element('compressionMethod', type="DEFLATE", isSupported="True")
-            xmlOutput.append(xmlNode)
+            comp_is_supported = True
         else:
-            xmlNode = Element('compressionMethod', type="DEFLATE", isSupported="False")
-            xmlOutput.append(xmlNode)
+            comp_is_supported = False
 
-        return PluginBase.PluginResult(txtOutput, xmlOutput)
+        xmlOutput = Element(command, title=cmdTitle)
+        xmlNode = Element('compressionMethod', type="DEFLATE", isSupported=str(comp_is_supported))
+        xmlOutput.append(xmlNode)
+
+        db_output = {'isSupported': comp_is_supported}
+
+        return PluginBase.PluginResult(txtOutput, xmlOutput, db_output)
 

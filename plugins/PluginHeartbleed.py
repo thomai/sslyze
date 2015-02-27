@@ -69,10 +69,10 @@ class PluginHeartbleed(PluginBase.PluginBase):
         elif '\x01\x01\x01\x01\x01\x01\x01\x01\x01' in heartbleed:
             # Server replied with our hearbeat payload
             heartbleedTxt = 'VULNERABLE - Server is vulnerable to Heartbleed'
-            heartbleedXml = 'True'
+            is_vulnerable = True
         else:
             heartbleedTxt = 'OK - Not vulnerable to Heartbleed'
-            heartbleedXml = 'False'
+            is_vulnerable = False
 
         cmdTitle = 'OpenSSL Heartbleed'
         txtOutput = [self.PLUGIN_TITLE_FORMAT(cmdTitle)]
@@ -81,10 +81,13 @@ class PluginHeartbleed(PluginBase.PluginBase):
         # XML output
         xmlOutput = Element(command, title=cmdTitle)
         if heartbleed:
-            xmlNode = Element('openSslHeartbleed', isVulnerable=heartbleedXml)
+            xmlNode = Element('openSslHeartbleed', isVulnerable=str(is_vulnerable))
             xmlOutput.append(xmlNode)
 
-        return PluginBase.PluginResult(txtOutput, xmlOutput)
+        # DB output
+        db_output = {'isVulnerable': is_vulnerable}
+
+        return PluginBase.PluginResult(txtOutput, xmlOutput, db_output)
 
 
 

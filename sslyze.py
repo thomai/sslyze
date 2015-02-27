@@ -28,6 +28,7 @@ from xml.etree.ElementTree import Element, tostring
 from xml.dom import minidom
 import signal
 import sys
+import pymongo
 
 from plugins import PluginsFinder
 
@@ -107,7 +108,7 @@ class WorkerProcess(Process):
                               command + ': ', str(e.__class__.__module__) +
                               '.' + str(e.__class__.__name__) + ' - ' + str(e)]
                 xml_result = Element(command, exception=txt_result[1], title=plugin_instance.interface.title)
-                result = PluginResult(txt_result, xml_result)
+                result = PluginResult(txt_result, xml_result, None)
 
             # Send the result to queue_out
             self.queue_out.put((target, command, result))
@@ -258,6 +259,9 @@ def main():
     # XML output
     xml_output_list = []
 
+    # DB output
+    db_output_list = {}
+
     # Each host has a list of results
     result_dict = {}
     for target in targets_OK:
@@ -275,10 +279,18 @@ def main():
             result_dict[target].append((command, plugin_result))
 
             if len(result_dict[target]) == task_num: # Done with this target
-                # Print the results and update the xml doc
+                # Print the results
                 print _format_txt_target_result(target, result_dict[target])
+
+                # Update xml doc
                 if shared_settings['xml_file']:
                     xml_output_list.append(_format_xml_target_result(target, result_dict[target]))
+
+                # Update db output
+                for (command, plugin_result) in result_dict[target]:
+                    if command not in db_output_list:
+                        db_output_list[command] = []
+                    db_output_list[command].append({'target': target, 'results': plugin_result.get_db_result()})
 
         result_queue.task_done()
 
@@ -318,6 +330,17 @@ def main():
         with open(shared_settings['xml_file'],'w') as xml_file:
             xml_file.write(xml_final_pretty.toprettyxml(indent="  ", encoding="utf-8" ))
 
+    # Persist data in database
+    if shared_settings['db_conn']:
+        try:
+            db_conn = pymongo.MongoClient(shared_settings['db_conn'])
+            db = db_conn.sslyze
+            for command in db_output_list.keys():
+                for target_with_results in db_output_list[command]:
+                    collection = db[command]
+                    collection.insert(target_with_results)
+        except pymongo.errors.ConnectionFailure, e:
+            print "Could not connect to MongoDB: %s" % e
 
     print _format_title('Scan Completed in {0:.2f} s'.format(exec_time))
 

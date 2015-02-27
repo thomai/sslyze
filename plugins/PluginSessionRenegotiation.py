@@ -60,7 +60,11 @@ class PluginSessionRenegotiation(PluginBase.PluginBase):
         xmlOutput = Element(command, title=cmdTitle)
         xmlOutput.append(xmlReneg)
 
-        return PluginBase.PluginResult(txtOutput, xmlOutput)
+        # DB output
+        db_output = {'canBeClientInitiated': clientReneg,
+                     'isSecure': secureReneg}
+
+        return PluginBase.PluginResult(txtOutput, xmlOutput, db_output)
 
 
     def _test_renegotiation(self, target):
