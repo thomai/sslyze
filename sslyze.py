@@ -24,8 +24,8 @@
 from time import time
 from itertools import cycle
 from multiprocessing import Process, JoinableQueue, freeze_support
-from xml.etree.ElementTree import Element, tostring
-from xml.dom import minidom
+#from xml.etree.ElementTree import Element, tostring
+#from xml.dom import minidom
 import signal
 import sys
 import pymongo
@@ -107,8 +107,9 @@ class WorkerProcess(Process):
                 txt_result = ['Unhandled exception when processing --' +
                               command + ': ', str(e.__class__.__module__) +
                               '.' + str(e.__class__.__name__) + ' - ' + str(e)]
-                xml_result = Element(command, exception=txt_result[1], title=plugin_instance.interface.title)
-                result = PluginResult(txt_result, xml_result, None)
+                #xml_result = Element(command, exception=txt_result[1], title=plugin_instance.interface.title)
+                #result = PluginResult(txt_result, xml_result, None)
+                result = PluginResult(None, None, None)
 
             # Send the result to queue_out
             self.queue_out.put((target, command, result))
@@ -121,15 +122,15 @@ def _format_title(title):
     return ' ' + title.upper()+ '\n' + ' ' + ('-' * len(title))
 
 
-def _format_xml_target_result(target, result_list):
-    (host, ip, port, sslVersion) = target
-    target_xml = Element('target', host=host, ip=ip, port=str(port))
-    result_list.sort(key=lambda result: result[0]) # Sort results
+#def _format_xml_target_result(target, result_list):
+#    (host, ip, port, sslVersion) = target
+#    target_xml = Element('target', host=host, ip=ip, port=str(port))
+#    result_list.sort(key=lambda result: result[0]) # Sort results
 
-    for (command, plugin_result) in result_list:
-        target_xml.append(plugin_result.get_xml_result())
+#    for (command, plugin_result) in result_list:
+#        target_xml.append(plugin_result.get_xml_result())
 
-    return target_xml
+#    return target_xml
 
 
 def _format_txt_target_result(target, result_list):
@@ -257,10 +258,15 @@ def main():
     processes_running = nb_processes
 
     # XML output
-    xml_output_list = []
+    #xml_output_list = []
 
     # DB output
-    db_output_list = {}
+    if shared_settings['db_conn']:
+        try:
+            db_conn = pymongo.MongoClient(shared_settings['db_conn'])
+            db = db_conn.sslyze
+        except pymongo.errors.ConnectionFailure, e:
+            print "Could not connect to MongoDB: %s" % e
 
     # Each host has a list of results
     result_dict = {}
@@ -280,17 +286,22 @@ def main():
 
             if len(result_dict[target]) == task_num: # Done with this target
                 # Print the results
-                print _format_txt_target_result(target, result_dict[target])
+                #print _format_txt_target_result(target, result_dict[target])
+                print 'Finished target:', str(target)
 
                 # Update xml doc
-                if shared_settings['xml_file']:
-                    xml_output_list.append(_format_xml_target_result(target, result_dict[target]))
+                #if shared_settings['xml_file']:
+                #    xml_output_list.append(_format_xml_target_result(target, result_dict[target]))
 
                 # Update db output
-                for (command, plugin_result) in result_dict[target]:
-                    if command not in db_output_list:
-                        db_output_list[command] = []
-                    db_output_list[command].append({'target': target, 'results': plugin_result.get_db_result()})
+                if shared_settings['db_conn']:
+                    for (command, plugin_result) in result_dict[target]:
+                        try:
+                            # Persist data in database
+                            collection = db[command]
+                            collection.insert({'target': target, 'results': plugin_result.get_db_result()})
+                        except pymongo.errors.ConnectionFailure, e:
+                            print "Could not connect to MongoDB: %s" % e
 
         result_queue.task_done()
 
@@ -304,43 +315,31 @@ def main():
     exec_time = time()-start_time
 
     # Output XML doc to a file if needed
-    if shared_settings['xml_file']:
-        result_xml_attr = {'httpsTunnel':str(shared_settings['https_tunnel_host']),
-                           'totalScanTime' : str(exec_time),
-                           'defaultTimeout' : str(shared_settings['timeout']),
-                           'startTLS' : str(shared_settings['starttls'])}
+    #if shared_settings['xml_file']:
+    #    result_xml_attr = {'httpsTunnel':str(shared_settings['https_tunnel_host']),
+    #                       'totalScanTime' : str(exec_time),
+    #                       'defaultTimeout' : str(shared_settings['timeout']),
+    #                       'startTLS' : str(shared_settings['starttls'])}
 
-        result_xml = Element('results', attrib = result_xml_attr)
+    #    result_xml = Element('results', attrib = result_xml_attr)
 
-        # Sort results in alphabetical order to make the XML files (somewhat) diff-able
-        xml_output_list.sort(key=lambda xml_elem: xml_elem.attrib['host'])
-        for xml_element in xml_output_list:
-            result_xml.append(xml_element)
+    #    # Sort results in alphabetical order to make the XML files (somewhat) diff-able
+    #    xml_output_list.sort(key=lambda xml_elem: xml_elem.attrib['host'])
+    #    for xml_element in xml_output_list:
+    #        result_xml.append(xml_element)
 
-        xml_final_doc = Element('document', title = "SSLyze Scan Results",
-                                SSLyzeVersion = PROJECT_VERSION,
-                                SSLyzeWeb = PROJECT_URL)
-        # Add the list of invalid targets
-        xml_final_doc.append(ServersConnectivityTester.get_xml_result(targets_ERR))
-        # Add the output of the plugins
-        xml_final_doc.append(result_xml)
+    #    xml_final_doc = Element('document', title = "SSLyze Scan Results",
+    #                            SSLyzeVersion = PROJECT_VERSION,
+    #                            SSLyzeWeb = PROJECT_URL)
+    #    # Add the list of invalid targets
+    #    xml_final_doc.append(ServersConnectivityTester.get_xml_result(targets_ERR))
+    #    # Add the output of the plugins
+    #    xml_final_doc.append(result_xml)
 
-        # Hack: Prettify the XML file so it's (somewhat) diff-able
-        xml_final_pretty = minidom.parseString(tostring(xml_final_doc, encoding='UTF-8'))
-        with open(shared_settings['xml_file'],'w') as xml_file:
-            xml_file.write(xml_final_pretty.toprettyxml(indent="  ", encoding="utf-8" ))
-
-    # Persist data in database
-    if shared_settings['db_conn']:
-        try:
-            db_conn = pymongo.MongoClient(shared_settings['db_conn'])
-            db = db_conn.sslyze
-            for command in db_output_list.keys():
-                for target_with_results in db_output_list[command]:
-                    collection = db[command]
-                    collection.insert(target_with_results)
-        except pymongo.errors.ConnectionFailure, e:
-            print "Could not connect to MongoDB: %s" % e
+    #    # Hack: Prettify the XML file so it's (somewhat) diff-able
+    #    xml_final_pretty = minidom.parseString(tostring(xml_final_doc, encoding='UTF-8'))
+    #    with open(shared_settings['xml_file'],'w') as xml_file:
+    #        xml_file.write(xml_final_pretty.toprettyxml(indent="  ", encoding="utf-8" ))
 
     print _format_title('Scan Completed in {0:.2f} s'.format(exec_time))
 

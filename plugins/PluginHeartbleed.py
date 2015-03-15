@@ -58,14 +58,19 @@ class PluginHeartbleed(PluginBase.PluginBase):
         try: # Perform the SSL handshake
             sslConn.connect()
         except HeartbleedSent:
-            # Awful hack #2: directly read the underlying network socket
-            heartbleed = sslConn._sock.recv(16381)
+            try:
+                # Awful hack #2: directly read the underlying network socket
+                heartbleed = sslConn._sock.recv(16381)
+            except socket.timeout:
+                is_vulnerable = False
+                heartbleedTxt = "Connection timed out at receiving after heartbleed payload."
         finally:
             sslConn.close()
 
         # Text output
         if heartbleed is None:
-            raise Exception("Error: connection failed.")
+            #raise Exception("Error: connection failed.")
+            pass
         elif '\x01\x01\x01\x01\x01\x01\x01\x01\x01' in heartbleed:
             # Server replied with our hearbeat payload
             heartbleedTxt = 'VULNERABLE - Server is vulnerable to Heartbleed'
@@ -73,6 +78,7 @@ class PluginHeartbleed(PluginBase.PluginBase):
         else:
             heartbleedTxt = 'OK - Not vulnerable to Heartbleed'
             is_vulnerable = False
+        note = heartbleedTxt
 
         cmdTitle = 'OpenSSL Heartbleed'
         txtOutput = [self.PLUGIN_TITLE_FORMAT(cmdTitle)]
@@ -85,7 +91,7 @@ class PluginHeartbleed(PluginBase.PluginBase):
             xmlOutput.append(xmlNode)
 
         # DB output
-        db_output = {'isVulnerable': is_vulnerable}
+        db_output = {'isVulnerable': is_vulnerable, 'note': note}
 
         return PluginBase.PluginResult(txtOutput, xmlOutput, db_output)
 
