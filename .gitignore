@@ -46,3 +46,9 @@ nosetests.xml
 nassl/*
 
 .DS_Store
+
+example_queries.js
+start_sslyze.sh
+start_test_targets.sh
+test_targets
+test_targets2
