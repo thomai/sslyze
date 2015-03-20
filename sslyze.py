@@ -273,6 +273,7 @@ def main():
     for target in targets_OK:
         result_dict[target] = []
 
+    finished_target_counter = 1
     # If all processes have stopped, all the work is done
     while processes_running:
         result = result_queue.get()
@@ -287,7 +288,8 @@ def main():
             if len(result_dict[target]) == task_num: # Done with this target
                 # Print the results
                 #print _format_txt_target_result(target, result_dict[target])
-                print 'Finished target:', str(target)
+                print 'Finished target ' + str(finished_target_counter) + ':', str(target)
+                finished_target_counter += 1
 
                 # Update xml doc
                 #if shared_settings['xml_file']:
@@ -299,7 +301,8 @@ def main():
                         try:
                             # Persist data in database
                             collection = db[command]
-                            collection.insert({'target': target, 'results': plugin_result.get_db_result()})
+                            db_result = plugin_result.get_db_result()
+                            collection.insert({'target': target, 'results': db_result})
                         except pymongo.errors.ConnectionFailure, e:
                             print "Could not connect to MongoDB: %s" % e
 

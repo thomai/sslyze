@@ -43,7 +43,7 @@ nosetests.xml
 *.xml
 
 # Depedencies
-nassl/*
+#nassl/*
 
 .DS_Store
 

@@ -43,19 +43,19 @@ class PluginOpenSSLCipherSuites(PluginBase.PluginBase):
     interface.add_command(
         command="sslv3",
         help="Lists the SSL 3.0 OpenSSL cipher suites supported by the server(s).",
-        aggressive=True)
+        aggressive=False)
     interface.add_command(
         command="tlsv1",
         help="Lists the TLS 1.0 OpenSSL cipher suites supported by the server(s).",
-        aggressive=True)
+        aggressive=False)
     interface.add_command(
         command="tlsv1_1",
         help="Lists the TLS 1.1 OpenSSL cipher suites supported by the server(s).",
-        aggressive=True)
+        aggressive=False)
     interface.add_command(
         command="tlsv1_2",
         help="Lists the TLS 1.2 OpenSSL cipher suites supported by the server(s).",
-        aggressive=True)
+        aggressive=False)
     interface.add_option(
         option='http_get',
         help="Option - For each cipher suite, sends an HTTP GET request after "

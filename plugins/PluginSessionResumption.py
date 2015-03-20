@@ -46,7 +46,7 @@ class PluginSessionResumption(PluginBase.PluginBase):
         help=(
             "Performs 100 session resumptions with the server(s), "
             "in order to estimate the session resumption rate."),
-        aggressive=True)
+        aggressive=False)
 
 
     def process_task(self, target, command, args):
