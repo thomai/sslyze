@@ -248,12 +248,16 @@ class X509Certificate:
         for x509ext in self._x509.get_extensions():
             extName = x509ext.get_object()
             extData = x509ext.get_data()
+            if '.' in extName:
+                encoded_ext_name = extName.replace('.', '\uff0E')
+            else:
+                encoded_ext_name = extName
             # TODO: Should we output the critical field ?
             #extCrit = x509ext.get_critical()
             if extName in x509extParsingFunctions.keys():
-                extDict[extName] = x509extParsingFunctions[extName](extData)
+                extDict[encoded_ext_name] = x509extParsingFunctions[extName](extData)
             else:
-                extDict[extName] = extData.strip()
+                extDict[encoded_ext_name] = extData.strip()
 
         return extDict
 
