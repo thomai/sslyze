@@ -166,7 +166,11 @@ class X509Certificate:
     def _parse_x509_name(nameEntries):
         nameEntriesDict= {}
         for entry in nameEntries:
-            nameEntriesDict[entry.get_object()] = entry.get_data()
+            if '.' in entry.get_object():
+                key = entry.get_object().replace('.', '\uff0E')
+            else:
+                key = entry.get_object()
+            nameEntriesDict[key] = entry.get_data()
         return nameEntriesDict
 
 

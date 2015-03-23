@@ -46,7 +46,8 @@ PROJECT_URL = "https://github.com/nabla-c0d3/sslyze"
 PROJECT_EMAIL = 'nabla.c0d3@gmail.com'
 PROJECT_DESC = 'Fast and full-featured SSL scanner'
 
-MAX_PROCESSES = 12
+#MAX_PROCESSES = 12
+MAX_PROCESSES = 200
 MIN_PROCESSES = 3
 
 # Global so we can terminate processes when catching SIGINT
