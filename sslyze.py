@@ -276,7 +276,7 @@ def main():
 
     finished_target_counter = 1
     # If all processes have stopped, all the work is done
-    current_time = time()
+    #current_time = time()
     while processes_running:
         result = result_queue.get()
 
@@ -290,9 +290,9 @@ def main():
             if len(result_dict[target]) == task_num: # Done with this target
                 # Print the results
                 #print _format_txt_target_result(target, result_dict[target])
-                diff = time() - current_time
-                current_time = time()
-                print 'Finished target ' + str(finished_target_counter) + ': ' + str(target) + '\t' + str(diff)
+                #diff = time() - current_time
+                #current_time = time()
+                print 'Finished target ' + str(finished_target_counter) + ': ' + str(target)# + '\t' + str(diff)
                 finished_target_counter += 1
 
                 # Update xml doc
