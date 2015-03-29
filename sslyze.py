@@ -110,7 +110,7 @@ class WorkerProcess(Process):
                               '.' + str(e.__class__.__name__) + ' - ' + str(e)]
                 #xml_result = Element(command, exception=txt_result[1], title=plugin_instance.interface.title)
                 #result = PluginResult(txt_result, xml_result, None)
-                result = PluginResult(None, None, None)
+                result = PluginResult(txt_result, None, {'exception': txt_result})
 
             # Send the result to queue_out
             self.queue_out.put((target, command, result))
@@ -134,18 +134,18 @@ def _format_title(title):
 #    return target_xml
 
 
-def _format_txt_target_result(target, result_list):
-    (host, ip, port, sslVersion) = target
-    target_result_str = ''
+#def _format_txt_target_result(target, result_list):
+#    (host, ip, port, sslVersion) = target
+#    target_result_str = ''
 
-    for (command, plugin_result) in result_list:
-        # Print the result of each separate command
-        target_result_str += '\n'
-        for line in plugin_result.get_txt_result():
-            target_result_str += line + '\n'
+#    for (command, plugin_result) in result_list:
+#        # Print the result of each separate command
+#        target_result_str += '\n'
+#        for line in plugin_result.get_txt_result():
+#            target_result_str += line + '\n'
 
-    scan_txt = SCAN_FORMAT.format(host, str(port), ip)
-    return _format_title(scan_txt) + '\n' + target_result_str + '\n\n'
+#    scan_txt = SCAN_FORMAT.format(host, str(port), ip)
+#    return _format_title(scan_txt) + '\n' + target_result_str + '\n\n'
 
 
 def sigint_handler(signum, frame):
@@ -166,7 +166,7 @@ def main():
 
     #--PLUGINS INITIALIZATION--
     start_time = time()
-    print '\n\n\n' + _format_title('Registering available plugins')
+    #print '\n\n\n' + _format_title('Registering available plugins')
     sslyze_plugins = PluginsFinder()
     available_plugins = sslyze_plugins.get_plugins()
     available_commands = sslyze_plugins.get_commands()
