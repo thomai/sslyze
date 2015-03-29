@@ -170,10 +170,10 @@ def main():
     sslyze_plugins = PluginsFinder()
     available_plugins = sslyze_plugins.get_plugins()
     available_commands = sslyze_plugins.get_commands()
-    print ''
-    for plugin in available_plugins:
-        print '  ' + plugin.__name__
-    print '\n\n'
+    #print ''
+    #for plugin in available_plugins:
+    #    print '  ' + plugin.__name__
+    #print '\n\n'
 
     # Create the command line parser and the list of available options
     sslyze_parser = CommandLineParser(available_plugins, PROJECT_VERSION)
