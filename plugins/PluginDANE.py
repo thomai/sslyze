@@ -327,10 +327,12 @@ class PluginDANE(PluginBase.PluginBase):
 
         txtOutput = [self.PLUGIN_TITLE_FORMAT(cmdTitle)]
 
-        (target_domain, _, target_port, _) = target
-        tlsa_domain = '_' + str(target_port) + '._tcp.' + target_domain + '.'
-
         try:
+            (target_domain, _, target_port, _) = target
+            import socket
+            target_domain = socket.gethostbyaddr(target_domain)[0]
+            tlsa_domain = '_' + str(target_port) + '._tcp.' + target_domain + '.'
+
             # Get TLSA records
             answers = dns.resolver.query(tlsa_domain, 'TLSA')
 
