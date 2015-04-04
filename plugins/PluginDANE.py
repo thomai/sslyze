@@ -161,7 +161,8 @@ def validate_trust_chain(domain_name):
 
     # Initialize validation
     ds_records = get_trust_anchor()
-    default_nameserver = '127.0.1.1'
+    #default_nameserver = '127.0.1.1'
+    default_nameserver = '8.8.8.8'
 
     domain_parts = list(reversed([domain_part for domain_part in original_domain.split('.')]))
     zone = ''
