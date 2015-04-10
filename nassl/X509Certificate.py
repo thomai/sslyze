@@ -294,6 +294,7 @@ class X509Certificate:
         auth_ext_list = {}
 
         for auth_entry in auth_ext:
+            auth_entry = auth_entry.replace('.', '\uff0E')
             auth_entry = auth_entry.split(' - ')
             entry_name = auth_entry[0].replace(' ', '')
 
@@ -319,10 +320,12 @@ class X509Certificate:
             distrib_point = distrib_point.strip()
             distrib_point = distrib_point.split(':', 1)
             if distrib_point[0] != '':
-                if subcrl.has_key(distrib_point[0].strip()):
-                    subcrl[distrib_point[0].strip()].append(distrib_point[1].strip())
+                distrib_point_0 = distrib_point[0].strip()
+                distrib_point_1 = distrib_point[1].strip()
+                if subcrl.has_key(distrib_point_0):
+                    subcrl[distrib_point_0].append(distrib_point_1)
                 else:
-                    subcrl[distrib_point[0].strip()] = [(distrib_point[1].strip())]
+                    subcrl[distrib_point_0] = [(distrib_point_1)]
 
         return subcrl
 
